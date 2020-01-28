@@ -26,6 +26,7 @@ declare module WAPI {
   const addAllNewMessagesListener: (callback: Function) => void;
   const onParticipantsChanged: (groupId: string, callback: Function) => any;
   const sendMessage: (to: string, content: string) => void;
+  const sendMessageToID: (to: string, content: string) => void;
   const getGeneratedUserAgent: (userAgent?:string) => string;
   const forwardMessages: (to: string, messages: string | [string | Message], skipMyMessages: boolean) => any;
   const sendLocation: (to: string, lat: any, lng: any, loc: string) => void;
@@ -38,9 +39,9 @@ declare module WAPI {
   ) => void;
   const sendMessageWithThumb: (
     thumb:string,
-    url:string, 
-    title:string, 
-    description:string, 
+    url:string,
+    title:string,
+    description:string,
     chatId:string
     ) => void;
   const getBusinessProfilesProducts: (to: string) => any;
@@ -184,7 +185,7 @@ export class Whatsapp {
   /**
    * Listens to all new messages
    * @param to callback
-   * @returns 
+   * @returns
    */
   public onAnyMessage(fn: (message: Message) => void) {
     const funcName = "onAnyMessage";
@@ -208,7 +209,7 @@ export class Whatsapp {
     return await this.page.evaluate(
       ({ to, content }) => {
         WAPI.sendSeen(to);
-        WAPI.sendMessage(to, content);
+        WAPI.sendMessageToID(to, content);
       },
       { to, content }
     );
@@ -216,9 +217,9 @@ export class Whatsapp {
 
   public async sendMessageWithThumb(
     thumb:string,
-    url:string, 
-    title:string, 
-    description:string, 
+    url:string,
+    title:string,
+    description:string,
     chatId:string){
     return await this.page.evaluate(
       ({ thumb,
@@ -397,7 +398,7 @@ chatId
    * @param bizNumber string the @c.us number of the business account from which you want to grab the product
    * @param productId string the id of the product within the main catalog of the aforementioned business
    * @param done - function - Callback function to be called contained the buffered messages.
-   * @returns 
+   * @returns
    */
   public async sendImageWithProduct(
     to: string,

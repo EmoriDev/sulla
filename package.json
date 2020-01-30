@@ -22,7 +22,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/smashah/sulla.git"
+    "url": "git+https://github.com/jprustv/sulla.git"
   },
   "keywords": [
     "whatsapp",
@@ -32,7 +32,7 @@
     "automatization",
     "puppeteer"
   ],
-  "author": "Mohammed Shah <@smashah>",
+  "author": "Jonathan Prust Vernizzi <@jprustv>",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/smashah/sulla/issues"

@@ -9,9 +9,10 @@
 var ExposedFn;
 (function (ExposedFn) {
     ExposedFn["OnMessage"] = "onMessage";
-    ExposedFn["onAck"] = "onAck";
-    ExposedFn["onParticipantsChanged"] = "onParticipantsChanged";
-    ExposedFn["onStateChanged"] = "onStateChanged";
+    ExposedFn["OnAck"] = "onAck";
+    ExposedFn["OnAnyMessage"] = "onAnyMessage";
+    ExposedFn["OnParticipantsChanged"] = "onParticipantsChanged";
+    ExposedFn["OnStateChanged"] = "onStateChanged";
 })(ExposedFn || (ExposedFn = {}));
 /**
  * Exposes [OnMessage] function
@@ -26,7 +27,11 @@ WAPI.waitNewAcknowledgements(function (data) {
         data = [data];
     }
     data.forEach(function (message) {
-        window[ExposedFn.onAck](message);
+        if (window[ExposedFn.OnAck])
+            window[ExposedFn.OnAck](message);
     });
 });
-WAPI.onStateChanged(function (s) { return window[ExposedFn.onStateChanged](s.state); });
+WAPI.onStateChanged(function (s) { return window[ExposedFn.OnStateChanged](s.state); });
+WAPI.addAllNewMessagesListener(function (_) {
+    window[ExposedFn.OnAnyMessage](_);
+});

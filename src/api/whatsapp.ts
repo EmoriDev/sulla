@@ -6,7 +6,7 @@ import { Message } from './model/message';
 import { Id } from './model/id';
 import axios from 'axios';
 import { participantChangedEventModel } from './model/group-metadata';
-import {useragent} from '../config/puppeteer.config'
+import { useragent } from '../config/puppeteer.config'
 
 export const getBase64 = async (url: string) => {
   try {
@@ -28,8 +28,14 @@ declare module WAPI {
   const sendMessage: (to: string, content: string) => void;
   const sendMessageToID: (to: string, content: string) => void;
   const getGeneratedUserAgent: (userAgent?:string) => string;
+  const reply: (to: string, content: string, quotedMsg: string | Message) => void;
   const forwardMessages: (to: string, messages: string | [string | Message], skipMyMessages: boolean) => any;
   const sendLocation: (to: string, lat: any, lng: any, loc: string) => void;
+  const addParticipant: (groupId: string, contactId: string) => void;
+  const removeParticipant: (groupId: string, contactId: string) => void;
+  const promoteParticipant: (groupId: string, contactId: string) => void;
+  const demoteParticipant: (groupId: string, contactId: string) => void;
+  const createGroup: (groupName: string, contactId: string|[string]) => void;
   const sendSeen: (to: string) => void;
   const sendImage: (
     base64: string,
@@ -38,12 +44,12 @@ declare module WAPI {
     caption: string
   ) => void;
   const sendMessageWithThumb: (
-    thumb:string,
-    url:string,
-    title:string,
-    description:string,
-    chatId:string
-    ) => void;
+    thumb: string,
+    url: string,
+    title: string,
+    description: string,
+    chatId: string
+  ) => void;
   const getBusinessProfilesProducts: (to: string) => any;
   const sendImageWithProduct: (base64: string, to: string, caption: string, bizNumber: string, productId: string) => any;
   const sendFile: (
@@ -113,6 +119,23 @@ export class Whatsapp {
   }
 
   /**
+   * Listens to all new messages
+   * @param to callback
+   * @returns
+   */
+  public onAnyMessage(fn: (message: Message) => void) {
+    this.page.exposeFunction(ExposedFn.OnAnyMessage, (message: Message) =>
+      fn(message)
+    )
+    // .then(_ => this.page.evaluate(
+    //   () => {
+    //     WAPI.addAllNewMessagesListener(window["onAnyMessage"]);
+    //   },
+    //   {}
+    // ));
+  }
+
+  /**
    * Listens to messages received
    * @returns Observable stream of messages
    */
@@ -128,7 +151,7 @@ export class Whatsapp {
    */
   public async getConnectionState() {
     //@ts-ignore
-    return await this.page.evaluate(()=>{return Store.State.default.state})
+    return await this.page.evaluate(() => { return Store.State.default.state })
   }
 
   /**
@@ -146,16 +169,16 @@ export class Whatsapp {
    * @returns true
    */
   public async kill() {
-  console.log('Shutting Down');
-  if(this.page) await this.page.close();
-  if(this.page.browser) await this.page.browser().close();
-  return true;
+    console.log('Shutting Down');
+    if (this.page) await this.page.close();
+    if (this.page.browser) await this.page.browser().close();
+    return true;
   }
 
   public async forceRefocus() {
     //255 is the address of 'use here'
     //@ts-ignore
-    const useHere :string = await this.page.evaluate(() => {return window.l10n.localeStrings[window.l10n._locale.l][0][255]});
+    const useHere: string = await this.page.evaluate(() => { return window.l10n.localeStrings[window.l10n._locale.l][0][255] });
     await this.page.waitForFunction(
       `[...document.querySelectorAll("div[role=button")].find(e=>{return e.innerHTML.toLowerCase()==="${useHere.toLowerCase()}"})`,
       { timeout: 0 }
@@ -170,7 +193,7 @@ export class Whatsapp {
    * @returns Observable stream of participantChangedEvent
    */
   public onParticipantsChanged(groupId: string, fn: (participantChangedEvent: participantChangedEventModel) => void) {
-    const funcName = "onParticipantsChanged_"+ groupId.replace('_',"").replace('_',"");
+    const funcName = "onParticipantsChanged_" + groupId.replace('_', "").replace('_', "");
     return this.page.exposeFunction(funcName, (participantChangedEvent: participantChangedEventModel) =>
       fn(participantChangedEvent)
     )
@@ -236,10 +259,10 @@ export class Whatsapp {
       },
       {
         thumb,
-url,
-title,
-description,
-chatId
+        url,
+        title,
+        description,
+        chatId
 
       }
     );
@@ -266,13 +289,13 @@ chatId
    * Get the generated user agent, this is so you can send it to the decryption module.
    * @returns String useragent of wa-web session
    */
-  public async getGeneratedUserAgent(userA?:string) {
+  public async getGeneratedUserAgent(userA?: string) {
     let ua = userA || useragent;
     return await this.page.evaluate(
       (ua) => {
         WAPI.getGeneratedUserAgent(ua);
       },
-      {ua}
+      { ua }
     );
   }
 
@@ -299,6 +322,20 @@ chatId
     );
   }
 
+  /**
+   *
+   * @param to string chatid
+   * @param content string reply text
+   * @param quotedMsg string | Message the msg object or id to reply to.
+   */
+  public async reply(to: string, content: string, quotedMsg: any) {
+    return await this.page.evaluate(
+      ({ to, content, quotedMsg }) => {
+        WAPI.reply(to, content, quotedMsg)
+      },
+      { to, content, quotedMsg }
+    )
+  }
 
   /**
    * Sends a file to given chat, with caption or not, using base64. This is exactly the same as sendImage
@@ -708,7 +745,74 @@ chatId
     );
   }
 
+  /**
+   * Sends a text message to given chat
+   * @param to group name: 'New group'
+   * @param contacts: A single contact id or an array of contact ids.
+   */
+  public async createGroup(groupName:string,contacts:string|[string]){
+    return await this.page.evaluate(
+      ({ groupName, contacts }) => {
+        WAPI.createGroup(groupName, contacts);
+      },
+      { groupName, contacts }
+    );
+  }
 
+  /**
+   * Remove participant of Group
+   * @param {*} idGroup '0000000000-00000000@g.us'
+   * @param {*} idParticipant '000000000000@c.us'
+   * @param {*} done - function - Callback function to be called when a new message arrives.
+   */
+
+  public async removeParticipant(idGroup: string, idParticipant: string) {
+    return await this.page.evaluate(
+      ({ idGroup, idParticipant }) => WAPI.removeParticipant(idGroup, idParticipant),
+      { idGroup, idParticipant }
+    );
+  }
+
+  /**
+  * Add participant to Group
+  * @param {*} idGroup '0000000000-00000000@g.us'
+  * @param {*} idParticipant '000000000000@c.us'
+  * @param {*} done - function - Callback function to be called when a new message arrives.
+  */
+
+  public async addParticipant(idGroup: string, idParticipant: string) {
+    return await this.page.evaluate(
+      ({ idGroup, idParticipant }) => WAPI.addParticipant(idGroup, idParticipant),
+      { idGroup, idParticipant }
+    );
+  }
+
+  /**
+  * Promote Participant to Admin in Group
+  * @param {*} idGroup '0000000000-00000000@g.us'
+  * @param {*} idParticipant '000000000000@c.us'
+  * @param {*} done - function - Callback function to be called when a new message arrives.
+  */
+
+  public async promoteParticipant(idGroup: string, idParticipant: string) {
+    return await this.page.evaluate(
+      ({ idGroup, idParticipant }) => WAPI.promoteParticipant(idGroup, idParticipant),
+      { idGroup, idParticipant }
+    );
+  }
+
+  /**
+  * Demote Admin of Group
+  * @param {*} idGroup '0000000000-00000000@g.us'
+  * @param {*} idParticipant '000000000000@c.us'
+  * @param {*} done - function - Callback function to be called when a new message arrives.
+  */
+  public async demoteParticipant(idGroup: string, idParticipant: string) {
+    return await this.page.evaluate(
+      ({ idGroup, idParticipant }) => WAPI.demoteParticipant(idGroup, idParticipant),
+      { idGroup, idParticipant }
+    );
+  }
 }
 
 export { useragent } from '../config/puppeteer.config'

@@ -61,6 +61,8 @@ function start(client) {
 | [Forward Messages](#sending-gifs)                  |             | ✅          |
 | [Listen to Read Receipts](#sending-gifs)           |             | ✅          |
 | [Group participant changes](#group-participant-changes)         |             | ✅          |
+| [Create Groups](#create-group)         |             | ✅          |
+| [add, remove, promote, demote participants](##group-participants-beta)         |             | ✅          |
 
 ## Capturing QR Code
 
@@ -332,6 +334,45 @@ await client.forwardMessages('xxxxx@c.us',[...],true)
 
 //forward single message by id
 await client.forwardMessages('xxxxx@c.us,"...",true)
+```
+
+## Reply to messages
+
+As of version 1.6.17, you can now reply to specific messages.
+
+```javascript
+...
+/**
+   * @param to string chatid
+   * @param content string reply text
+   * @param quotedMsg string | Message the msg object or id to reply to.
+   */
+
+      await client.reply('xxxxx@c.us','This is the reply',message);
+...
+```
+
+## Create group
+
+As of v1.7.2 you can now create a new group. The first parameter is the group name, the second parameter is the contact ids to add as participants
+
+```javascript
+...
+  client.createGroup('Cool new group','xxxxxxxxx@c.us') //you can also send an array of ids.
+...
+```
+
+## Group participants [beta]
+
+As of v1.7.0 you can now add, remove, promote & demote participants for groups. The first parameter is the chat id for the group. The second parameter is the number to which you are conducting the action.
+
+```javascript
+...
+  client.addParticipant('XXXXXXX-YYYYYY@c.us','ZZZZZZZZZ@c.us')
+  client.removeParticipant('XXXXXXX-YYYYYY@c.us','ZZZZZZZZZ@c.us')
+  client.promoteParticipant('XXXXXXX-YYYYYY@c.us','ZZZZZZZZZ@c.us')
+  client.demoteParticipant('XXXXXXX-YYYYYY@c.us','ZZZZZZZZZ@c.us')
+...
 ```
 
 ## Group participant changes

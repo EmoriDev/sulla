@@ -1,11 +1,18 @@
 // const sulla = require('../dist/index');
 // var create = require("sulla").create;
 // import { create, Whatsapp, decryptMedia, ev } from '../dist/index';
-import { create, Whatsapp, decryptMedia, ev } from '../src/index';
+import { create, Whatsapp, decryptMedia, ev, smartUserAgent } from '../src/index';
 const mime = require('mime-types');
 const fs = require('fs');
 const uaOverride = 'WhatsApp/2.16.352 Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Safari/605.1.15';
 const tosBlockGuaranteed = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/79.0.3945.88 Safari/537.36";
+const ON_DEATH = require('death');
+let globalClient:Whatsapp;
+
+ON_DEATH(async function(signal, err) {
+  console.log('killing session');
+  if(globalClient)await globalClient.kill();
+})
 
 
 ev.on('qr.**', async (qrcode,sessionId) => {
@@ -17,6 +24,7 @@ ev.on('qr.**', async (qrcode,sessionId) => {
 });
 
 async function start(client: Whatsapp) {
+  globalClient=client;
   console.log('starting');
   // const chats = await client.getAllChatsWithMessages(false);
   // console.log("TCL: start -> chats", chats)
@@ -41,11 +49,14 @@ async function start(client: Whatsapp) {
 
   // const allmsgs = await client.loadAndGetAllMessagesInChat('XXXXXXXX-YYYYYYYY@g.us",true,false);
   // console.log("TCL: start -> allMessages", allmsgs.length);
-  
+
+  client.onAnyMessage(message=>console.log(message.id.toString()));
+
   client.onMessage(async message => {
     try {
     const isConnected = await client.isConnected();
     console.log("TCL: start -> isConnected", isConnected)
+
     if (message.mimetype) {
       const filename = `${message.t}.${mime.extension(message.mimetype)}`;
       const mediaData = await decryptMedia(message, uaOverride);
@@ -86,6 +97,8 @@ async function start(client: Whatsapp) {
       //send a giphy gif
         await client.forwardMessages(message.from,message,false);
       await client.sendGiphy(message.from,'https://media.giphy.com/media/oYtVHSxngR3lC/giphy.gif','Oh my god it works');
+      console.log("TCL: start -> message.from,message.body,message.id.toString()", message.from,message.body,message.id.toString())
+      await client.reply(message.from,message.body,message);
     }
     } catch (error) {
     console.log("TCL: start -> error", error)
@@ -102,15 +115,15 @@ async function start(client: Whatsapp) {
  * You can also override some puppeteer configs, set an executable path for your instance of chrome for ffmpeg (video+GIF) support
  * and you can AND SHOULD override the user agent.
  */
-create('session',
-{
-  executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  headless:false,
-  // autoRefresh:true, //default to true
-  // qrRefreshS:15 //please note that if this is too long then your qr code scan may end up being invalid. Generally qr codes expire every 15 seconds.
-}
-)
-// create()
+// create('session',
+// {
+//   executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+//   headless:false,
+//   // autoRefresh:true, //default to true
+//   // qrRefreshS:15 //please note that if this is too long then your qr code scan may end up being invalid. Generally qr codes expire every 15 seconds.
+// }
+// )
+create()
 .then(async client => await start(client));
 
 //or you can set a 'session id'

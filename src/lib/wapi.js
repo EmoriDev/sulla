@@ -27,12 +27,15 @@ if (!window.Store) {
                 { id: "SendSeen", conditions: (module) => (module.sendSeen) ? module.sendSeen : null },
                 { id: "sendDelete", conditions: (module) => (module.sendDelete) ? module.sendDelete : null },
                 { id: "addAndSendMsgToChat", conditions: (module) => (module.addAndSendMsgToChat) ? module.addAndSendMsgToChat : null },
+                { id: "sendMsgToChat", conditions: (module) => (module.sendMsgToChat) ? module.sendMsgToChat : null },
                 { id: "Catalog", conditions: (module) => (module.Catalog) ? module.Catalog : null },
                 { id: "Parser", conditions: (module) => (module.convertToTextWithoutSpecialEmojis) ? module.default : null },
                 { id: "Builders", conditions: (module) => (module.TemplateMessage && module.HydratedFourRowTemplate) ? module : null },
                 { id: "Identity", conditions: (module) => (module.queryIdentity && module.updateIdentity) ? module : null },
                 { id: "Features", conditions: (module) => (module.FEATURE_CHANGE_EVENT && module.features) ? module : null },
-                { id: "Participants", conditions: (module) => (module.addParticipants && module.removeParticipants && module.promoteParticipants && module.demoteParticipants) ? module : null }
+                { id: "MessageUtils", conditions: (module) => (module.storeMessages && module.appendMessage) ? module : null },
+                { id: "Participants", conditions: (module) => (module.addParticipants && module.removeParticipants && module.promoteParticipants && module.demoteParticipants) ? module : null },
+                { id: "Base", conditions: (module) => (module.setSubProtocol && module.binSend && module.actionNode) ? module : null }
             ];
             for (let idx in modules) {
                 if ((typeof modules[idx] === "object") && (modules[idx] !== null)) {
@@ -86,6 +89,7 @@ if (!window.Store) {
 // window.Store.d = webpackJsonp([], null, ["dbdfbgehgj"]);
 // window.Store.e = webpackJsonp([], null, ["bbchdeehff"]);
 // window.Store.buttons = webpackJsonp([], null, ["cdaaeifjfh"]);
+window.Store.sendMsgRecord=webpackJsonp([],null,['cjafhagbj']).sendMsgRecord;
 
 window.WAPI = {
     lastRead: {}
@@ -1688,8 +1692,10 @@ hydratedContentText:'hellllloooowww',
 
 window.WAPI.sendButtons2 = async function(chatId){
     var chat = Store.Chat.get(chatId);
-    var tempMsg = Object.create(chat.msgs.filter(msg => msg.__x_isSentByMe)[0]);
+    var tempMsg = Object.create(chat.msgs.filter(msg => msg.__x_isSentByMe && msg.type=="chat")[0]);
+    var t2 = Object.create(chat.msgs.filter(msg => msg.__x_isSentByMe)[0]);
     var newId = window.WAPI.getNewMessageId(chatId);
+    delete tempMsg.hasTemplateButtons;
     var extend = {
         ack: 0,
         id: newId,
@@ -1705,8 +1711,8 @@ window.WAPI.sendButtons2 = async function(chatId){
         broadcast:false,
         isQuotedMsgAvailable:true,
         shouldEnableHsm:true,
-        __x_hasTemplateButtons:false,
-        invis:true
+        __x_hasTemplateButtons:true,
+        invis:true,
     };
 
     Object.assign(tempMsg, extend);
@@ -1717,20 +1723,51 @@ hydratedButtons:[
     {callButton:new Store.Builders.HydratedCallButton({displayText:'test call',phoneNumber:"4477777777777"})},
     {urlButton:new Store.Builders.HydratedURLButton({displayText:'test url',url:"https://google.com"})}
 ],
-hydratedContentText:'hellllloooowww'
+hydratedContentText:'hellllloooowww',
+hydratedFooterText:"asdasd",
+hydratedTitleText:"asdasd232"
 });
 
-
-    Store.Parser.parseTemplateMessage(tempMsg,btns);
-    // tempMsg._minEphemeralExpirationTimestamp()
+    Store.Parser.parseTemplateMessage(t2,btns);
+    tempMsg.buttons=t2.buttons;
+    tempMsg.mediaData = undefined;
+    tempMsg._minEphemeralExpirationTimestamp()
     // tempMsg.senderObj.isBusiness=true;
     // tempMsg.senderObj.isEnterprise=true;
-    await Store.addAndSendMsgToChat(chat, tempMsg)
-
+    tempMsg.senderObj = {
+      ...tempMsg.senderObj,
+      isBusiness:true,
+      isEnterprise:true,
+      notifyName:"button test",
+      mentionName:"Button Test",
+      displayName:"Button Test",
+      searchName:"button test",
+      header:'b',
+      formattedShortNameWithNonBreakingSpaces:"Button test",
+      formattedShortName:"Button test",
+      formattedName:"Button test",
+      formattedUser:"Button test",
+      
+    }
+    tempMsg.body='12355';
+    await Store.MessageUtils.appendMessage(chat,tempMsg)
+    var t = Store.Msg.add(tempMsg)[0]
+    await chat.sendQueue.enqueue(chat.addQueue.enqueue(t.waitForPrep().then(_=>t)).then(t=>chat.msgs.add(t)).catch(e=>console.log(e))).then(e => {
+        var t = e[0];
+        console.log('t',t)
+        //comment the next line to see the buttons. the next line will send the message but whatsapp wil sanitize it of all the buttony goodness
+        // return Store.sendMsgRecord(t)
+        //or 
+        /**
+         * var ccc=webpackJsonp([],null,['bdeabjehdj'])
+         * var bp = webpackJsonp([],null,['dajcegbdcc'])
+         * ccc.BinaryProtocol = new bp.default();
+         * ccc.msgCreateRecord(tempMsg)
+         * check WebMessageInfo
+         */
+        return Store.WapQuery.msgCreateRecord(tempMsg)
+    })
 }
-
-
-
 
 window.WAPI.reply = async function (chatId, body, quotedMsg) {
     if (typeof quotedMsg !== "object") quotedMsg = Store.Msg.get(quotedMsg)

@@ -50,7 +50,7 @@ async function start(client: Whatsapp) {
   // const allmsgs = await client.loadAndGetAllMessagesInChat('XXXXXXXX-YYYYYYYY@g.us",true,false);
   // console.log("TCL: start -> allMessages", allmsgs.length);
 
-  client.onAnyMessage(message=>console.log(message.id.toString()));
+  client.onAnyMessage(message=>console.log(message.type));
 
   client.onMessage(async message => {
     try {
@@ -118,14 +118,25 @@ async function start(client: Whatsapp) {
 create('session',
 {
   executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  headless:false,
+  headless:true,
+  throwErrorOnTosBlock:true,
   killTimer:40,
   autoRefresh:true, //default to true
-  qrRefreshS:15 //please note that if this is too long then your qr code scan may end up being invalid. Generally qr codes expire every 15 seconds.
+  qrRefreshS:15, //please note that if this is too long then your qr code scan may end up being invalid. Generally qr codes expire every 15 seconds.
+  cacheEnabled:false,
+  //example chrome args. THIS MAY BREAK YOUR APP !!!ONLY FOR TESTING FOR NOW!!!.
+  chromiumArgs:[
+    '--aggressive-cache-discard',
+    '--disable-cache',
+    '--disable-application-cache',
+    '--disable-offline-load-stale-cache',
+    '--disk-cache-size=0'
+  ]
 }
 )
 // create()
-.then(async client => await start(client)).catch(e=>{
+.then(async client => await start(client))
+.catch(e=>{
   console.log(e);
   // process.exit();
 });

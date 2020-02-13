@@ -1,6 +1,6 @@
 [![npm version](https://img.shields.io/npm/v/sulla-hotfix.svg?color=green)](https://www.npmjs.com/package/sulla-hotfix)
 [![Buy me a coffee][buymeacoffee-shield]][buymeacoffee]
-
+<a href="https://discord.gg/dnpp72a"><img src="https://img.shields.io/discord/661438166758195211?color=blueviolet&label=discord&style=flat" /></a>
 # sulla-hotfix
 
 > Sulla is a javascript library which provides a high-level API control to Whatsapp so it can be configured to automatize resposes or any data that goes trough Whatsapp effortlessly.
@@ -63,6 +63,11 @@ function start(client) {
 | [Group participant changes](#group-participant-changes)         |             | ✅          |
 | [Create Groups](#create-group)         |             | ✅          |
 | [add, remove, promote, demote participants](##group-participants-beta)         |             | ✅          |
+
+## Starting a conversation
+
+As a matter of principle, this library will not develop any functionality to start new chats. If you want to start a conversation with a recipient I suggest using [whatsapp links](https://faq.whatsapp.com/en/26000030/) or add [whatsapp-button](https://www.producthunt.com/posts/whatsapp-button-2) to your website ([github link](https://github.com/smashah/whatsapp-button?ref=producthunt)).
+
 
 ## Capturing QR Code
 

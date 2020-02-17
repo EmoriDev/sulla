@@ -29,7 +29,6 @@ declare module WAPI {
   const onLiveLocation: (chatId: string, callback: Function) => any;
   const sendMessage: (to: string, content: string) => void;
   const sendMessageToID: (to: string, content: string) => void;
-  const getGeneratedUserAgent: (userAgent?:string) => string;
   const reply: (to: string, content: string, quotedMsg: string | Message) => void;
   const getGeneratedUserAgent: (userAgent?: string) => string;
   const forwardMessages: (to: string, messages: string | (string | Message)[], skipMyMessages: boolean) => any;

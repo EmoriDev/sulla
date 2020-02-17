@@ -1148,6 +1148,33 @@ window.WAPI.deleteConversation = function (chatId, done) {
     return true;
 };
 
+window.WAPI.smartDeleteMessages = function (chatId, messageArray, done) {
+    var userId = new Store.WidFactory.createWid(chatId);
+    let conversation = WAPI.getChat(userId);
+    if (!conversation) {
+        if (done !== undefined) {
+            done(false);
+        }
+        return false;
+    }
+
+    if (!Array.isArray(messageArray)) {
+        messageArray = [messageArray];
+    }
+
+    let messagesToDelete = messageArray.map(msgId => (typeof msgId == 'string')?window.Store.Msg.get(msgId):msgId);
+    let jobs = [
+        conversation.sendRevokeMsgs(messagesToDelete.filter(msg=>msg.isSentByMe),conversation),
+        conversation.sendDeleteMsgs(messagesToDelete.filter(msg=>!msg.isSentByMe),conversation)
+    ]
+    Promise.all(jobs).then(_=>{
+        if (done !== undefined) {
+            done(true);
+        }
+        return true;
+    })
+};
+
 window.WAPI.deleteMessage = function (chatId, messageArray, revoke = false, done) {
     let userId = new window.Store.UserConstructor(chatId, { intentionallyUsePrivateConstructor: true });
     let conversation = WAPI.getChat(userId);
@@ -1313,6 +1340,22 @@ window.WAPI.waitNewAcknowledgements = function (callback) {
     return true;
 }
 
+window.WAPI.onLiveLocation = function (chatId, callback) {
+    var lLChat = Store.LiveLocation.get(chatId);
+    if(lLChat) {
+        var validLocs = lLChat.participants.validLocations();
+        validLocs.map(x=>x.on('change:lastUpdated',(x,y,z)=>{console.log(x,y,z);
+            const {id,lat,lng,accuracy,degrees,speed,lastUpdated}=x;
+        const l = {
+            id:id.toString(),lat,lng,accuracy,degrees,speed,lastUpdated};
+        // console.log('newloc',l)
+        callback(l);
+        }));
+        return true;
+    } else {
+        return false;
+    }
+}
 /**
  * Registers a callback to participant changes on a certain, specific group
  * @param groupId - string - The id of the group that you want to attach the callback to.
@@ -1321,6 +1364,14 @@ window.WAPI.waitNewAcknowledgements = function (callback) {
  */
 var groupParticpiantsEvents = {};
 window.WAPI.onParticipantsChanged = function (groupId, callback) {
+    const subtypeEvents = [
+        "invite" , 
+        "add" , 
+        "remove" ,
+        "leave" ,
+        "promote" ,
+        "demote"
+    ];
     const chat = window.Store.Chat.get(groupId);
     //attach all group Participants to the events object as 'add'
     const metadata = window.Store.GroupMetadata.get(groupId);
@@ -1337,7 +1388,7 @@ window.WAPI.onParticipantsChanged = function (groupId, callback) {
     chat.on("change:groupMetadata.participants",
         _ => chat.on("all", (x, y) => {
             const { isGroup, previewMessage } = y;
-            if (isGroup && x === "change" && previewMessage && previewMessage.type === "gp2" && (previewMessage.subtype === "add" || previewMessage.subtype === "remove")) {
+            if (isGroup && x === "change" && previewMessage && previewMessage.type === "gp2" && subtypeEvents.includes(previewMessage.subtype)) {
                 const { subtype, from, recipients } = previewMessage;
                 const rec = recipients[0].toString();
                 if (groupParticpiantsEvents[groupId][rec] && groupParticpiantsEvents[groupId][recipients[0]].subtype == subtype) {

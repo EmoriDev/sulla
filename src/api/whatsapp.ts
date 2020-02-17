@@ -1,11 +1,11 @@
 import { Page } from 'puppeteer';
 import { ExposedFn } from './functions/exposed.enum';
-import { Chat } from './model/chat';
+import { Chat, LiveLocationChangedEvent } from './model/chat';
 import { Contact } from './model/contact';
 import { Message } from './model/message';
 import { Id } from './model/id';
 import axios from 'axios';
-import { participantChangedEventModel } from './model/group-metadata';
+import { ParticipantChangedEventModel } from './model/group-metadata';
 import { useragent } from '../config/puppeteer.config'
 
 export const getBase64 = async (url: string) => {
@@ -26,17 +26,19 @@ declare module WAPI {
   const addAllNewMessagesListener: (callback: Function) => void;
   const onStateChanged: (callback: Function) => void;
   const onParticipantsChanged: (groupId: string, callback: Function) => any;
+  const onLiveLocation: (chatId: string, callback: Function) => any;
   const sendMessage: (to: string, content: string) => void;
   const sendMessageToID: (to: string, content: string) => void;
   const getGeneratedUserAgent: (userAgent?:string) => string;
   const reply: (to: string, content: string, quotedMsg: string | Message) => void;
-  const forwardMessages: (to: string, messages: string | [string | Message], skipMyMessages: boolean) => any;
+  const getGeneratedUserAgent: (userAgent?: string) => string;
+  const forwardMessages: (to: string, messages: string | (string | Message)[], skipMyMessages: boolean) => any;
   const sendLocation: (to: string, lat: any, lng: any, loc: string) => void;
   const addParticipant: (groupId: string, contactId: string) => void;
   const removeParticipant: (groupId: string, contactId: string) => void;
   const promoteParticipant: (groupId: string, contactId: string) => void;
   const demoteParticipant: (groupId: string, contactId: string) => void;
-  const createGroup: (groupName: string, contactId: string|[string]) => void;
+  const createGroup: (groupName: string, contactId: string|string[]) => void;
   const sendSeen: (to: string) => void;
   const sendImage: (
     base64: string,
@@ -80,7 +82,7 @@ declare module WAPI {
   const getContact: (contactId: string) => Contact;
   const checkNumberStatus: (contactId: string) => any;
   const getChatById: (contactId: string) => Chat;
-  const deleteMessage: (contactId: string, messageId: [string] | string, revoke?: boolean) => any;
+  const smartDeleteMessages: (contactId: string, messageId: string[] | string) => any;
   const sendContact: (to: string, contact: string | string[]) => any;
   const simulateTyping: (to: string, on: boolean) => void;
   const isConnected: () => Boolean;
@@ -187,23 +189,44 @@ export class Whatsapp {
     await this.page.evaluate(`[...document.querySelectorAll("div[role=button")].find(e=>{return e.innerHTML.toLowerCase()=="${useHere.toLowerCase()}"}).click()`);
   }
 
+/**
+ * Listens to live locations from a chat that already has valid live locations
+ * @param chatId the chat from which you want to subscribes to live location updates
+ * @param fn callback that takes in a LiveLocationChangedEvent
+ * @returns boolean, if returns false then there were no valid live locations in the chat of chatId
+ */
+  public onLiveLocation(chatId: string, fn: (liveLocationChangedEvent: LiveLocationChangedEvent) => void) {
+    const funcName = "onLiveLocation_" + chatId.replace('_', "").replace('_', "");
+    return this.page.exposeFunction(funcName, (liveLocationChangedEvent: LiveLocationChangedEvent) =>
+      fn(liveLocationChangedEvent)
+    )
+      .then(_ => this.page.evaluate(
+        ({ chatId,funcName }) => {
+        //@ts-ignore
+          return WAPI.onLiveLocation(chatId, window[funcName]);
+        },
+        { chatId, funcName}
+      ));
+  }
+
   /**
    * Listens to add and remove evevnts on Groups
    * @param to group id: xxxxx-yyyy@us.c
    * @param to callback
    * @returns Observable stream of participantChangedEvent
    */
-  public onParticipantsChanged(groupId: string, fn: (participantChangedEvent: participantChangedEventModel) => void) {
+  public onParticipantsChanged(groupId: string, fn: (participantChangedEvent: ParticipantChangedEventModel) => void) {
     const funcName = "onParticipantsChanged_" + groupId.replace('_', "").replace('_', "");
-    return this.page.exposeFunction(funcName, (participantChangedEvent: participantChangedEventModel) =>
+    return this.page.exposeFunction(funcName, (participantChangedEvent: ParticipantChangedEventModel) =>
       fn(participantChangedEvent)
     )
-    .then(_ => this.page.evaluate(
-      ({ groupId }) => {
-        WAPI.onParticipantsChanged(groupId, window[funcName]);
-      },
-      { groupId }
-    ));
+      .then(_ => this.page.evaluate(
+        ({ groupId,funcName }) => {
+        //@ts-ignore
+          WAPI.onParticipantsChanged(groupId, window[funcName]);
+        },
+        { groupId, funcName}
+      ));
   }
 
   /**
@@ -648,10 +671,10 @@ export class Whatsapp {
    * @param messageId
    * @returns nothing
    */
-  public async deleteMessage(contactId: string, messageId: [string] | string, revoke?: boolean) {
+  public async deleteMessage(contactId: string, messageId: string[] | string) {
     return await this.page.evaluate(
-      ({ contactId, messageId, revoke }) => WAPI.deleteMessage(contactId, messageId, revoke),
-      { contactId, messageId, revoke }
+      ({ contactId, messageId }) => WAPI.smartDeleteMessages(contactId, messageId),
+      { contactId, messageId }
     );
   }
 
@@ -733,7 +756,7 @@ export class Whatsapp {
    * @param to group name: 'New group'
    * @param contacts: A single contact id or an array of contact ids.
    */
-  public async createGroup(groupName:string,contacts:string|[string]){
+  public async createGroup(groupName:string,contacts:string|string[]){
     return await this.page.evaluate(
       ({ groupName, contacts }) => {
         WAPI.createGroup(groupName, contacts);
